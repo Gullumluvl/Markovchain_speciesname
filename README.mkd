@@ -1,0 +1,14 @@
+Markov Chain Generator of fixed-length sequences of words.
+==========================================================
+
+I use it to generate random species names (Linnean binomial nomenclature).
+
+Takes in input a text file containing one example name per line (e.g one
+species name per line).
+
+Output a serie of randomly-generated (letter-wise) sequence of words.
+There is a transition matrix for each position of the word in the line (e.g a
+transition matrix for the genus name, and one for the species name).
+
+---
+Licensing: Do what you want with it.
