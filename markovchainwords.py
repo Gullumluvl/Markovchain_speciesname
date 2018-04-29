@@ -35,7 +35,7 @@ print_if_verbose = def_verbosity()
 ## Only make a letter-transition matrix
 
 # Indexed using the ascii number - 97 (the minimum value: 'a')
-# + word boundary state 27
+# + word boundary state 26
 # + letters with accents
 
 ## Fill syllable transition matrix (sparse matrix?)
@@ -56,6 +56,10 @@ print_if_verbose = def_verbosity()
 #
 # - HHMM (Hierarchical HMM): how to define the higher level states?
 
+
+# Etymological resource:
+# https://en.wikipedia.org/wiki/List_of_commonly_used_taxonomic_affixes
+# https://en.wikipedia.org/wiki/List_of_Latin_and_Greek_words_commonly_used_in_systematic_names
 
 def learn_letters(infile, maxwords=2, maxwordlen=100):
     s = 97 # ascii start: letter 'a' will be 0.
