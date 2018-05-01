@@ -94,12 +94,15 @@ def learn_letters(infile, maxwords=2, maxwordlen=100, order=1):
                 prev_is = np.array([ord(ch) for ch in prev_states]) - s
                 j = ord(state) - s
 
-                prev_states = prev_states[1:] + state
-                nonword = (prev_is <= 0) | (prev_is > a)
+                nonword = (prev_is < 0) | (prev_is >= a)
                 if nonword.any():
                     prev_is[nonword] = a
                     # erase memory of previous word. It's a new chain now.
-                    prev_is[:np.argmin(nonword)] = a
+                    startpos = np.argmin(nonword)
+                    prev_is[:startpos] = a
+                    #prev_states = ' '*(startpos-1) + prev_states[startpos:]
+                
+                prev_states = prev_states[1:] + state
 
                 # prev char not a word character
                 if not (0 <= prev_is[-1] < a):
@@ -118,6 +121,7 @@ def learn_letters(infile, maxwords=2, maxwordlen=100, order=1):
                     
                     word_len = min(state_i - prev_start, maxwordlen)
                     word_lengths[word_i, word_len] += 1
+                    prev_states = ' ' * order
 
                 #print_if_verbose(word_i, char_i, repr(line[char_i]))
                 i = (state_index_maker * prev_is).sum()
@@ -147,12 +151,11 @@ def learn_letters(infile, maxwords=2, maxwordlen=100, order=1):
         states = [s + chr(97+x) if x<a else s + ' ' \
                     for x in range(a+1) for s in states]
     states = np.array(states)
-    print(states.shape)
     for sc in state_counts:
-        print(sc.shape)
-        print('#Observed: %d; #Notseen: %d' % ((sc>0).sum(),
-                                                (sc==0).sum()))
-        print(states[sc == 0])
+        print_if_verbose('#Observed: %d; #Notseen (under): %d' % ((sc>0).sum(),
+                                                       (sc==0).sum()))
+        print_if_verbose(np.array2string(states[sc[:,0] == 0]))
+    # End of check
 
     print_if_verbose(state_counts)
     eq_freqs = [sc / sc.sum() for sc in state_counts]
@@ -160,14 +163,15 @@ def learn_letters(infile, maxwords=2, maxwordlen=100, order=1):
     Qs = [tc / sc for tc,sc in zip(transition_counts, state_counts)]
     return Qs, P_word_len
 
-def generate_word_seq(Qs, a=26, s=97, rep=1, P_stop=None, order=1):
+def generate_word_seq(Qs, a=26, s=97, rep=1, P_stop=None, order=1,
+                      length_model=False):
     # TODO: respect expected word lengths:
     # - Draw a random word length from the empirical distribution.
     # - Draw next letter conditionned on its possible ending of not.
     assert all((np.inf not in Q) for Q in Qs)
     if P_stop is None:
         P_stop = np.stack([poisson.sf(np.arange(70, 10))] * len(Qs))
-    
+
     max_iter = 100
     states = list(range(a+1))
     letters = [chr(s+x) for x in states]
@@ -185,11 +189,19 @@ def generate_word_seq(Qs, a=26, s=97, rep=1, P_stop=None, order=1):
             p = Q[prev_states_i, :]
             if np.isnan(p).any():
                 assert np.isnan(p).all()
-                print(prev_states_is, prev_states_i, i)
+                print("WARNING: Ended in a state with count zero:",
+                        prev_states_is, prev_states_i,
+                        "at letter", i, file=stderr)
                 output[word_i] += '.' # THIS SHOULD NOT HAPPEN.
                 break
-            p[:a] *= (1 - P_stop[word_i, i])/p[:a].sum()
-            p[a] = P_stop[word_i, i]
+
+            if length_model:
+                prop_continue = p[:a].sum()
+                if prop_continue > 0:
+                    p[:a] *= (1 - P_stop[word_i, i])/prop_continue
+                    p[a] = P_stop[word_i, i]
+                else:
+                    assert p[a] == 1
 
             state = np.random.choice(states, p=p)
             prev_states_is = prev_states_is[1:] + [state]
@@ -209,7 +221,7 @@ def deterministic_formatting(strdata):
     return strdata.capitalize()
 
 
-def main(infile, rep=10, maxwords=2, order=1):
+def main(infile, rep=10, maxwords=2, order=1, length_model=False):
     dbbase = os.path.splitext(os.path.basename(infile))[0]
     end = '-o%d.npy' % order
     dbfile = dbbase + end
@@ -224,8 +236,9 @@ def main(infile, rep=10, maxwords=2, order=1):
 
     for r in range(rep):
         print(deterministic_formatting(
-                generate_word_seq(Qs, rep=rep, P_stop=P_stop, order=order)))
-    
+                generate_word_seq(Qs, rep=rep, P_stop=P_stop, order=order,
+                                  length_model=length_model)))
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('infile')
@@ -233,7 +246,8 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--maxwords', type=int, default=2)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-o', '--order', type=int, default=1)
-    
+    parser.add_argument('-l', '--length-model', action='store_true')
+
     dictargs = vars(parser.parse_args())
     VERBOSE = dictargs.pop('verbose')
     print_if_verbose = def_verbosity()
