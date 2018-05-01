@@ -1,7 +1,7 @@
 Markov Chain Generator of fixed-length sequences of words.
 ==========================================================
 
-I use it to generate random species names (Linnean binomial nomenclature).
+I use it to generate random species names (Linnean [binomial nomenclature][1]).
 
 Takes in input a text file containing one example name per line (e.g one
 species name per line).
@@ -10,8 +10,24 @@ Output a serie of randomly-generated (letter-wise) sequence of words.
 There is a transition matrix for each position of the word in the line (e.g a
 transition matrix for the genus name, and one for the species name).
 
+The first time it is run on a training dataset, it will save the transition
+matrix and word length distribution in `.npy` files in the current directory.
+You can delete those files to rerun the learning step.
+
+Usage
+-----
+
+    # Generate random species names (2 words: Genus+species)
+    python3 species_markovi.py trainingsets/Opisthokonta_from_timetree.txt -o 3
+    
+    # To generate random genus names (one word)
+    ./species_markovi.py trainingsets/Opisthokonta-genera_from_timetree.txt -w 1 -o 3
+
+Output example
+--------------
+
 An example of names generated with a chain of order 3, with a training set of
-47850 Opisthokonta species from TimeTree:
+47850 Opisthokonta species from [TimeTree][2]:
 
     Pseudosophilus furicoloroensis
     Hydroas morachyuratus
@@ -49,3 +65,7 @@ And another example of order 3 trained on mammalian genera:
 
 ---
 Licensing: Do what you want with it.
+
+
+[1]: https://en.wikipedia.org/wiki/Binomial_nomenclature
+[2]: http://timetree.org/
